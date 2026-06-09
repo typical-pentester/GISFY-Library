@@ -1,0 +1,28 @@
+config:
+  target: "http://localhost:5000"
+  ensure:
+    maxErrorRate: 1
+  phases:
+    - duration: 30
+      arrivalRate: 10
+      name: "Moderate Load Test"
+scenarios:
+  - name: "Read heavy: Get all data"
+    weight: 4
+    flow:
+      - get:
+          url: "/api/students"
+      - get:
+          url: "/api/books"
+      - get:
+          url: "/api/library"
+  - name: "Write heavy: Add a book"
+    weight: 1
+    flow:
+      - post:
+          url: "/api/books"
+          json:
+            name: "Artillery Dummy Book"
+            author: "Load Tester"
+            pub: "Test Pub"
+            year: "2024-01-01"

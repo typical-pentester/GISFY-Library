@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "//_comment_test_load": "We added the test:load script below to run Artillery load tests, generate a report, and execute teardown.js.",
+    "test:load": "npx artillery run -o load-test-report.json load-test.yml && npx artillery report load-test-report.json && node teardown.js",
     "start": "node src/index.js",
     "dev": "nodemon src/index.js"
   },

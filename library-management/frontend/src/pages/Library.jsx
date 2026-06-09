@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getLibrary, createLibrary, updateLibrary, deleteLibrary, getStudents, getBooks } from '../api';
 
+/**
+ * Library Page Component
+ * 
+ * Description: Manages the UI and logic for adding, editing, deleting, and listing library borrowing records.
+ * 
+ * Data Flow / Consumers:
+ * - Rendered by `frontend/src/App.jsx` when the URL is `/library`.
+ * - Relies on `frontend/src/api.js` to communicate with the backend (`getLibrary`, `createLibrary`, etc.).
+ * - Also calls `getStudents` and `getBooks` to populate the dropdown selects for new records.
+ */
 const Library = () => {
   const [library, setLibrary] = useState([]);
   const [page, setPage] = useState(1);
@@ -18,6 +28,19 @@ const Library = () => {
   const [formData, setFormData] = useState({ student_id: '', book_id: '', start_date: '', end_date: '' });
   const [editingId, setEditingId] = useState(null);
 
+  /**
+   * Fetch Library Function
+   * 
+   * Description: Fetches the paginated, sorted list of library borrowing records from the server.
+   * 
+   * Inputs:
+   * - Reads current component state: `page`, `search`, `sortBy`, `sortOrder`.
+   * 
+   * Outputs / Data Flow:
+   * - Calls `getLibrary()` from `api.js` which hits `GET /api/library`.
+   * - Updates the `library` state array (triggering a re-render of the table).
+   * - Updates the `totalPages` state to adjust pagination.
+   */
   const fetchLibrary = async () => {
     try {
       const res = await getLibrary({ page, limit: 25, search, sortBy, sortOrder });
@@ -28,6 +51,15 @@ const Library = () => {
     }
   };
 
+  /**
+   * Fetch Dropdowns Function
+   * 
+   * Description: Fetches all students and all books to populate the `<select>` dropdowns in the form.
+   * 
+   * Outputs / Data Flow:
+   * - Hits `GET /api/students` and `GET /api/books` with high limits to get all records.
+   * - Sets `studentsList` and `booksList` state to render the options for the Add/Edit form.
+   */
   const fetchDropdowns = async () => {
     try {
       const sRes = await getStudents({ limit: 10000 });
@@ -52,7 +84,29 @@ const Library = () => {
     setFormData({ ...formData, [name]: value });
   };
 
+  /**
+   * Save Handler
+   * 
+   * Description: Submits the form data to create or update a borrowing record. Enforces start_date <= end_date.
+   * 
+   * Outputs / Data Flow:
+   * - If `editingId` exists, calls `updateLibrary(id, formData)` hitting `PUT /api/library/:id`.
+   * - If `editingId` is null, calls `createLibrary(formData)` hitting `POST /api/library`.
+   * - Re-fetches the library records after a successful save.
+   */
   const handleSave = async () => {
+    if (!formData.student_id || !formData.book_id || !formData.start_date || !formData.end_date) {
+      alert("Please enter all fields: Student, Book, Start Date, and End Date.");
+      return;
+    }
+
+    if (formData.start_date && formData.end_date) {
+      if (new Date(formData.start_date) > new Date(formData.end_date)) {
+        alert("Start Date must be before or equal to End Date.");
+        return;
+      }
+    }
+
     try {
       if (editingId) {
         await updateLibrary(editingId, formData);
@@ -75,8 +129,8 @@ const Library = () => {
     setFormData({ 
       student_id: lib.student_id, 
       book_id: lib.book_id, 
-      start_date: lib.start_date ? lib.start_date.split('T')[0] : '', 
-      end_date: lib.end_date ? lib.end_date.split('T')[0] : '' 
+      start_date: lib.start_date || '', 
+      end_date: lib.end_date || '' 
     });
     setEditingId(lib.id);
   };
@@ -87,7 +141,11 @@ const Library = () => {
         await deleteLibrary(id);
         fetchLibrary();
       } catch (err) {
-        console.error(err);
+        if (err.response && err.response.data && err.response.data.error) {
+          alert(err.response.data.error);
+        } else {
+          console.error(err);
+        }
       }
     }
   };
@@ -179,8 +237,8 @@ const Library = () => {
               <tr key={l.id}>
                 <td>{l.student_name}</td>
                 <td>{l.book_name}</td>
-                <td>{l.start_date ? new Date(l.start_date).toLocaleDateString() : ''}</td>
-                <td>{l.end_date ? new Date(l.end_date).toLocaleDateString() : ''}</td>
+                <td>{l.start_date}</td>
+                <td>{l.end_date}</td>
                 <td>
                   <div className="action-buttons">
                     <button className="btn btn-secondary" onClick={() => handleEdit(l)}>Edit</button>

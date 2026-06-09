@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getBooks, createBook, updateBook, deleteBook } from '../api';
 
+/**
+ * Books Page Component
+ * 
+ * Description: Manages the UI and logic for adding, editing, deleting, and listing books.
+ * 
+ * Data Flow / Consumers:
+ * - Rendered by the React Router in `frontend/src/App.jsx` when the URL is `/books`.
+ * - Relies on the `frontend/src/api.js` helper methods to communicate with the backend.
+ * - The list of books created here is also accessible in the dropdown menus of the `Library.jsx` page.
+ */
 const Books = () => {
   const [books, setBooks] = useState([]);
   const [page, setPage] = useState(1);
@@ -15,6 +25,19 @@ const Books = () => {
   const [formData, setFormData] = useState({ name: '', author: '', pub: '', year: '' });
   const [editingId, setEditingId] = useState(null);
 
+  /**
+   * Fetch Books Function
+   * 
+   * Description: Fetches the paginated, sorted, and searched list of books from the server.
+   * 
+   * Inputs:
+   * - Reads current component state: `page`, `search`, `sortBy`, `sortOrder`.
+   * 
+   * Outputs / Data Flow:
+   * - Calls `getBooks()` from `api.js` which hits `GET /api/books`.
+   * - Updates the `books` state array (which triggers a re-render of the HTML table).
+   * - Updates the `totalPages` state to adjust the pagination buttons.
+   */
   const fetchBooks = async () => {
     try {
       const res = await getBooks({ page, limit: 25, search, sortBy, sortOrder });
@@ -34,7 +57,22 @@ const Books = () => {
     setFormData({ ...formData, [name]: value });
   };
 
+  /**
+   * Save Handler
+   * 
+   * Description: Submits the form data to the backend to either create a new book or update an existing one.
+   * 
+   * Outputs / Data Flow:
+   * - If `editingId` exists, calls `updateBook(id, formData)` hitting `PUT /api/books/:id`.
+   * - If `editingId` is null, calls `createBook(formData)` hitting `POST /api/books`.
+   * - Upon success, it clears the form and re-fetches the table data.
+   */
   const handleSave = async () => {
+    if (!formData.name.trim() || !formData.author.trim() || !formData.pub.trim() || !formData.year) {
+      alert("Please enter all fields: Name, Author, Publication, and Year.");
+      return;
+    }
+
     try {
       if (editingId) {
         await updateBook(editingId, formData);
@@ -58,7 +96,7 @@ const Books = () => {
       name: book.name, 
       author: book.author, 
       pub: book.pub, 
-      year: book.year ? book.year.split('T')[0] : '' 
+      year: book.year || '' 
     });
     setEditingId(book.id);
   };
@@ -69,7 +107,11 @@ const Books = () => {
         await deleteBook(id);
         fetchBooks();
       } catch (err) {
-        console.error(err);
+        if (err.response && err.response.data && err.response.data.error) {
+          alert(err.response.data.error);
+        } else {
+          console.error(err);
+        }
       }
     }
   };
@@ -152,7 +194,7 @@ const Books = () => {
                 <td>{b.name}</td>
                 <td>{b.author}</td>
                 <td>{b.pub}</td>
-                <td>{b.year ? new Date(b.year).toLocaleDateString() : ''}</td>
+                <td>{b.year}</td>
                 <td>
                   <div className="action-buttons">
                     <button className="btn btn-secondary" onClick={() => handleEdit(b)}>Edit</button>

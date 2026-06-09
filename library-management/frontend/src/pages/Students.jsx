@@ -3,6 +3,16 @@ import { getStudents, createStudent, updateStudent, deleteStudent } from '../api
 
 const BACKEND_URL = 'http://localhost:5000';
 
+/**
+ * Students Page Component
+ * 
+ * Description: Manages the UI and logic for adding, editing, deleting, and listing students.
+ * Includes support for uploading media files (images/videos).
+ * 
+ * Data Flow / Consumers:
+ * - Rendered by the React Router in `frontend/src/App.jsx` when the URL is `/students`.
+ * - Relies heavily on the `frontend/src/api.js` helper methods to communicate with the backend.
+ */
 const Students = () => {
   const [students, setStudents] = useState([]);
   const [page, setPage] = useState(1);
@@ -16,7 +26,21 @@ const Students = () => {
 
   const [formData, setFormData] = useState({ name: '', className: '', photo: null, video: null });
   const [editingId, setEditingId] = useState(null);
+  const [existingMedia, setExistingMedia] = useState({ photo_url: null, video_url: null });
 
+  /**
+   * Fetch Students Function
+   * 
+   * Description: Fetches the paginated, sorted, and searched list of students from the server.
+   * 
+   * Inputs:
+   * - Reads current component state: `page`, `search`, `sortBy`, `sortOrder`.
+   * 
+   * Outputs / Data Flow:
+   * - Calls `getStudents()` from `api.js` which hits `GET /api/students`.
+   * - Updates the `students` state array (which triggers a re-render of the HTML table).
+   * - Updates the `totalPages` state to adjust the pagination buttons.
+   */
   const fetchStudents = async () => {
     try {
       const res = await getStudents({ page, limit: 25, search, sortBy, sortOrder });
@@ -40,7 +64,28 @@ const Students = () => {
     }
   };
 
+  /**
+   * Save Handler
+   * 
+   * Description: Submits the form data to the backend to either create a new student or update an existing one.
+   * Uses `FormData` to support multipart file uploads.
+   * 
+   * Outputs / Data Flow:
+   * - If `editingId` exists, calls `updateStudent(id, FormData)` hitting `PUT /api/students/:id`.
+   * - If `editingId` is null, calls `createStudent(FormData)` hitting `POST /api/students`.
+   * - Upon success, it clears the form and re-fetches the table data.
+   */
   const handleSave = async () => {
+    if (!formData.name.trim() || !formData.className.trim()) {
+      alert("Please enter the student's name and class.");
+      return;
+    }
+
+    if (!editingId && (!formData.photo || !formData.video)) {
+      alert("Photo and Video files are both required when adding a new student.");
+      return;
+    }
+
     const data = new FormData();
     data.append('name', formData.name);
     data.append('className', formData.className);
@@ -63,6 +108,7 @@ const Students = () => {
   const handleCancel = () => {
     setFormData({ name: '', className: '', photo: null, video: null });
     setEditingId(null);
+    setExistingMedia({ photo_url: null, video_url: null });
     // Reset file inputs
     document.getElementById('photoInput').value = '';
     document.getElementById('videoInput').value = '';
@@ -71,6 +117,7 @@ const Students = () => {
   const handleEdit = (student) => {
     setFormData({ name: student.name, className: student.class, photo: null, video: null });
     setEditingId(student.id);
+    setExistingMedia({ photo_url: student.photo_url, video_url: student.video_url });
   };
 
   const handleDelete = async (id) => {
@@ -79,7 +126,11 @@ const Students = () => {
         await deleteStudent(id);
         fetchStudents();
       } catch (err) {
-        console.error(err);
+        if (err.response && err.response.data && err.response.data.error) {
+          alert(err.response.data.error);
+        } else {
+          console.error(err);
+        }
       }
     }
   };
@@ -115,11 +166,29 @@ const Students = () => {
           <input type="text" name="className" value={formData.className} onChange={handleInputChange} />
         </div>
         <div className="form-group">
-          <label>Photo Attachment</label>
+          <label>Photo Attachment {editingId && '(Upload to change)'}</label>
+          {formData.photo ? (
+            <div style={{ marginBottom: '10px' }}>
+              <img src={URL.createObjectURL(formData.photo)} alt="New Preview" width="100" />
+            </div>
+          ) : (editingId && existingMedia.photo_url && (
+            <div style={{ marginBottom: '10px' }}>
+              <img src={`${BACKEND_URL}${existingMedia.photo_url}`} alt="Current" width="100" />
+            </div>
+          ))}
           <input id="photoInput" type="file" name="photo" accept="image/*" onChange={handleInputChange} />
         </div>
         <div className="form-group">
-          <label>Video Attachment</label>
+          <label>Video Attachment {editingId && '(Upload to change)'}</label>
+          {formData.video ? (
+            <div style={{ marginBottom: '10px' }}>
+              <video src={URL.createObjectURL(formData.video)} controls width="150" />
+            </div>
+          ) : (editingId && existingMedia.video_url && (
+            <div style={{ marginBottom: '10px' }}>
+              <video src={`${BACKEND_URL}${existingMedia.video_url}`} controls width="150" />
+            </div>
+          ))}
           <input id="videoInput" type="file" name="video" accept="video/*" onChange={handleInputChange} />
         </div>
         <div className="button-group">
